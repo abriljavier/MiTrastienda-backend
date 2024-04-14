@@ -53,24 +53,33 @@ const loginUser = asyncHandler(async (req, res) => {
     }
 
     const user = await User.findOne({ email });
-    if (user && (await bcrypt.compare(password, user.password))) {
+
+    if (user && await bcrypt.compare(password, user.password)) {
+        const token = jwt.sign(
+            {
+                id: user._id,
+                username: user.username,
+                email: user.email,
+                is_admin: user.is_admin
+            },
+            process.env.ACCESS_TOKEN_SECRET,
+            { expiresIn: '1d' }
+        );
+
+        user.password = undefined;
+
         res.json({
             _id: user._id,
             username: user.username,
             email: user.email,
             is_admin: user.is_admin,
-            token: generateToken(user._id)
+            token: token
         });
     } else {
         res.status(401);
         throw new Error("Invalid email or password");
     }
 });
-const generateToken = (userId) => {
-    return jwt.sign({ id: userId }, process.env.ACCESS_TOKEN_SECRET, {
-        expiresIn: '1d'
-    });
-};
 
 //@desc Current user
 //@route GET /api/users/current

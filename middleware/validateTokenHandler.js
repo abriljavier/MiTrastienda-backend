@@ -16,17 +16,14 @@ const validateToken = asyncHandler(async (req, res, next) => {
         return;
     }
 
-    jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, decoded) => {
-        if (err) {
-            res
-                .status(401)
-                .json({ message: "User is not authorized", error: err.message });
-            return;
-        }
-
+    try {
+        const decoded = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET);
         req.user = decoded;
         next();
-    });
+    } catch (error) {
+        console.error(error);
+        return res.status(401).json({ message: "Invalid token", error: error.message });
+    }
 });
 
 module.exports = validateToken;
