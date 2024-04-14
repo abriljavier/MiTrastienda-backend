@@ -11,7 +11,7 @@ const port = process.env.PORT || 3000;
 app.use(express.json());
 app.use("/api/users", require("./routes/userRoutes.js"));
 app.use("/api/products", require("./routes/productsRoutes.js"));
-
+app.use("/api/productLine", require("./routes/productLineRoutes.js"));
 app.use(errorHandler);
 
 app.listen(port, () => {
