@@ -3,3 +3,5 @@ const productLineSchema = new mongoose.Schema({
 });
 
 const ProductLine = mongoose.model("ProductLine", productLineSchema);
+module.exports = ProductLine;
+
