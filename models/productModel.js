@@ -6,7 +6,6 @@ const productSchema = new mongoose.Schema(
     product_line: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "ProductLine",
-      required: true,
     },
     category: { type: String, required: true },
     stock: {
@@ -18,7 +17,7 @@ const productSchema = new mongoose.Schema(
     description: { type: String, required: true },
     last_modified: { type: Date, default: Date.now },
     expiration_date: { type: Date },
-    barcode: { type: String, unique: true },
+    barcode: { type: String, unique: true, required: true },
     images: [String],
     position: { type: Number, required: true },
     user_id: {
@@ -31,3 +30,4 @@ const productSchema = new mongoose.Schema(
 );
 
 const Product = mongoose.model("Product", productSchema);
+module.exports = Product;

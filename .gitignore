@@ -1,8 +1,8 @@
 # Dependencias
 node_modules/
 
-# Archivo de entorno, de momento lo dejo para desarrollo
-# .env
+# Archivo de entorno
+.env
 
 # Directorios de cache
 .cache
