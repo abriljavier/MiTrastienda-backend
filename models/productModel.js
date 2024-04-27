@@ -7,7 +7,7 @@ const productSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "ProductLine",
     },
-    category: { type: String, required: true },
+    category: { type: String, required: false },
     stock: {
       current: { type: Number, required: true, default: 0 },
       min_required: { type: Number, required: true, default: 0 },
@@ -19,7 +19,7 @@ const productSchema = new mongoose.Schema(
     expiration_date: { type: Date },
     barcode: { type: String, unique: true, required: true },
     images: [String],
-    position: { type: Number, required: true },
+    position: { type: Number, required: false },
     user_id: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
