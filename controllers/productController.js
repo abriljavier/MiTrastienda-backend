@@ -48,7 +48,7 @@ const createProduct = asyncHandler(async (req, res, next) => {
     description,
     expiration_date,
     barcode,
-    images,
+    image,
     position,
     user_id,
   } = req.body;
@@ -82,7 +82,7 @@ const createProduct = asyncHandler(async (req, res, next) => {
     description,
     expiration_date,
     barcode,
-    images,
+    image,
     position,
     user_id,
   });

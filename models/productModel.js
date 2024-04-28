@@ -18,7 +18,7 @@ const productSchema = new mongoose.Schema(
     last_modified: { type: Date, default: Date.now },
     expiration_date: { type: Date },
     barcode: { type: String, unique: true, required: true },
-    images: [String],
+    image: { type: String },
     position: { type: Number, required: false },
     user_id: {
       type: mongoose.Schema.Types.ObjectId,
