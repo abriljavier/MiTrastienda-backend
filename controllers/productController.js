@@ -52,22 +52,15 @@ const createProduct = asyncHandler(async (req, res, next) => {
     position,
     user_id,
   } = req.body;
-  if (
-    !product_name ||
-    !category ||
-    !price ||
-    !format ||
-    !description ||
-    !user_id
-  ) {
-    let error = new Error("Please fill all the required fields");
+  if (!product_name || !price || !format || !description || !user_id) {
+    let error = new Error("No dejes campos en blanco");
     error.statusCode = 400;
     res.statusCode = 400;
     return next(error);
   }
   const existingProduct = await Product.findOne({ barcode });
   if (existingProduct) {
-    let error = new Error("Ya existe un producto con esa barcode");
+    let error = new Error("Ya existe un producto con ese código de barras");
     error.statusCode = 400;
     res.statusCode = 400;
     return next(error);
