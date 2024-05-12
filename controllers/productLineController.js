@@ -45,6 +45,12 @@ const createProductLine = asyncHandler(async (req, res) => {
       .status(400)
       .json({ message: "Ya existe una familia con ese nombre." });
   }
+  const count = await ProductLine.countDocuments({ user: userId });
+  if (count >= 10) {
+    return res.status(400).json({
+      message: "No se pueden tener más de diez familias",
+    });
+  }
   const lastProductLine = await ProductLine.findOne({ user: userId })
     .sort({ position: -1 })
     .select("position");

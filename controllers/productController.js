@@ -52,7 +52,7 @@ const createProduct = asyncHandler(async (req, res, next) => {
     position,
     user_id,
   } = req.body;
-  if (!product_name || !price || !format || !description || !user_id) {
+  if (!product_name || !price || !format || !user_id) {
     let error = new Error("No dejes campos en blanco");
     error.statusCode = 400;
     res.statusCode = 400;

@@ -14,7 +14,7 @@ const productSchema = new mongoose.Schema(
     },
     price: { type: Number, required: true },
     format: { type: Number, required: true },
-    description: { type: String, required: true },
+    description: { type: String, required: false },
     last_modified: { type: Date, default: Date.now },
     expiration_date: { type: Date },
     barcode: { type: String, unique: true, required: true },
