@@ -8,10 +8,12 @@ const getProducts = asyncHandler(async (req, res) => {
   if (!req.user) {
     return res.status(401).json({ message: "User not authenticated" });
   }
-  const products = await Product.find({ user_id: req.user.id }).populate(
-    "product_line",
-    "product_line_name"
-  );
+  const products = await Product.find({ user_id: req.user.id })
+    .populate({
+      path: "product_line",
+      select: "product_line_name position color",
+    })
+    .sort({ "product_line.position": 1 });
   res.json(products);
 });
 

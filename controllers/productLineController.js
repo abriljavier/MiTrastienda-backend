@@ -148,10 +148,52 @@ const deleteProductLine = asyncHandler(async (req, res) => {
   res.status(200).json({ message: "Product line successfully deleted" });
 });
 
+//@DESC Update batch productlines
+//@route PUT /api/productLines/batchUpdate
+//@access private
+const updateProductLinesBatch = asyncHandler(async (req, res) => {
+  const userId = req.user.id;
+  const updates = req.body;
+  const results = [];
+  const errors = [];
+
+  for (let update of updates) {
+    const { id, product_line_name, position, color } = update;
+    try {
+      const existingProductLine = await ProductLine.findOne({
+        _id: { $ne: id },
+        user: userId,
+        $or: [{ position }, { product_line_name }, { color }],
+      });
+      if (existingProductLine) {
+        errors.push({ id, message: "Conflict with an existing product line" });
+        continue;
+      }
+      const productLine = await ProductLine.findOneAndUpdate(
+        { _id: id, user: userId },
+        { product_line_name, position, color },
+        { new: true }
+      );
+      if (productLine) {
+        results.push(productLine);
+      } else {
+        errors.push({ id, message: "Product line not found" });
+      }
+    } catch (error) {
+      errors.push({ id, error: error.message });
+    }
+  }
+  if (errors.length > 0) {
+    return res.status(400).json({ message: "Errors occurred", errors });
+  }
+  res.status(200).json({ message: "Batch update successful", results });
+});
+
 module.exports = {
   getProductLines,
   getProductLine,
   createProductLine,
   updateProductLine,
   deleteProductLine,
+  updateProductLinesBatch,
 };
