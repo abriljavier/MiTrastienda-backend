@@ -13,7 +13,10 @@ const getProducts = asyncHandler(async (req, res) => {
       path: "product_line",
       select: "product_line_name position color",
     })
-    .sort({ "product_line.position": 1 });
+    .sort({
+      "product_line.position": 1,
+      position: 1,
+    });
   res.json(products);
 });
 
@@ -138,10 +141,40 @@ const deleteProduct = asyncHandler(async (req, res) => {
   res.json({ message: "Product successfully deleted" });
 });
 
+//@DESC update all the product positions
+//@route PUT /api/products/batchUpdate
+//@access private
+const updateProductsBatch = async (req, res) => {
+  try {
+    const updates = req.body;
+    const results = await Promise.all(
+      updates.map((update) =>
+        Product.updateOne(
+          { _id: update.productId },
+          { $set: { position: update.position } }
+        )
+      )
+    );
+
+    const updatedCount = results.filter(
+      (result) => result.nModified > 0
+    ).length;
+    res
+      .status(200)
+      .json({
+        message: "Productos actualizados con éxito",
+        updatedCount: updatedCount,
+      });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
 module.exports = {
   getProducts,
   createProduct,
   getProduct,
   updateProduct,
   deleteProduct,
+  updateProductsBatch,
 };

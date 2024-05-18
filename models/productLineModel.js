@@ -6,8 +6,6 @@ const productLineSchema = new mongoose.Schema({
   position: {
     type: Number,
     default: null,
-    unique: true,
-    sparse: true,
   },
   color: {
     type: String,

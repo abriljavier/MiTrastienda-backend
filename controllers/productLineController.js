@@ -7,7 +7,9 @@ const Product = require("../models/productModel");
 //@access private
 const getProductLines = asyncHandler(async (req, res) => {
   const userId = req.user.id;
-  const productLines = await ProductLine.find({ user: userId });
+  const productLines = await ProductLine.find({ user: userId }).sort({
+    position: 1,
+  });
   res.status(200).json(productLines);
 });
 
@@ -160,15 +162,6 @@ const updateProductLinesBatch = asyncHandler(async (req, res) => {
   for (let update of updates) {
     const { id, product_line_name, position, color } = update;
     try {
-      const existingProductLine = await ProductLine.findOne({
-        _id: { $ne: id },
-        user: userId,
-        $or: [{ position }, { product_line_name }, { color }],
-      });
-      if (existingProductLine) {
-        errors.push({ id, message: "Conflict with an existing product line" });
-        continue;
-      }
       const productLine = await ProductLine.findOneAndUpdate(
         { _id: id, user: userId },
         { product_line_name, position, color },
@@ -183,6 +176,7 @@ const updateProductLinesBatch = asyncHandler(async (req, res) => {
       errors.push({ id, error: error.message });
     }
   }
+
   if (errors.length > 0) {
     return res.status(400).json({ message: "Errors occurred", errors });
   }
