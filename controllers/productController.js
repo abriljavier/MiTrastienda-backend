@@ -159,14 +159,46 @@ const updateProductsBatch = async (req, res) => {
     const updatedCount = results.filter(
       (result) => result.nModified > 0
     ).length;
-    res
-      .status(200)
-      .json({
-        message: "Productos actualizados con éxito",
-        updatedCount: updatedCount,
-      });
+    res.status(200).json({
+      message: "Productos actualizados con éxito",
+      updatedCount: updatedCount,
+    });
   } catch (error) {
     res.status(500).json({ message: error.message });
+  }
+};
+
+// @DESC Update batch product stocks
+// @route PUT /api/products/batchUpdateStock
+// @access Private
+const updateProductStocksBatch = async (req, res) => {
+  try {
+    const updates = req.body.map((update) => ({
+      ...update,
+      newStock: parseInt(update.newStock),
+    }));
+    const results = await Promise.all(
+      updates.map((update) =>
+        Product.updateOne(
+          { _id: update.productId },
+          { $set: { "stock.current": update.newStock } }
+        )
+      )
+    );
+    const updatedCount = results.filter(
+      (result) => result.nModified > 0
+    ).length;
+
+    res.status(200).json({
+      message: "Stocks actualizados con éxito",
+      updatedCount: updatedCount,
+    });
+  } catch (error) {
+    console.error("Error al actualizar los stocks:", error);
+    res.status(500).json({
+      message: "Error al actualizar los stocks",
+      error: error.message,
+    });
   }
 };
 
@@ -177,4 +209,5 @@ module.exports = {
   updateProduct,
   deleteProduct,
   updateProductsBatch,
+  updateProductStocksBatch,
 };
