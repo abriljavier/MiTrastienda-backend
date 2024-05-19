@@ -202,6 +202,67 @@ const updateProductStocksBatch = async (req, res) => {
   }
 };
 
+// @DESC Process and update product stocks from CSV file
+// @route POST /api/products/uploadStockCSV
+// @access Private
+const { parse } = require("csv-parse");
+const fs = require("fs");
+const path = require("path");
+const uploadProductStocksCSV = asyncHandler(async (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ message: "No file uploaded" });
+  }
+
+  const filePath = path.join(__dirname, "..", "uploads", req.file.filename);
+
+  const parser = fs.createReadStream(filePath).pipe(
+    parse({
+      columns: true,
+      trim: true,
+      skip_empty_lines: true,
+    })
+  );
+
+  const updates = [];
+  try {
+    for await (const row of parser) {
+      const { barcode, sold } = row;
+      const soldQuantity = parseInt(sold, 10);
+
+      if (!isNaN(soldQuantity)) {
+        const product = await Product.findOneAndUpdate(
+          { barcode },
+          {
+            $inc: { "stock.current": -soldQuantity },
+            $set: { last_modified: new Date() },
+          },
+          { new: true }
+        );
+        if (product) {
+          updates.push({
+            barcode,
+            newStock: product.stock.current,
+            lastModified: product.last_modified,
+          });
+        } else {
+          console.error(`Product with barcode ${barcode} not found.`);
+        }
+      } else {
+        console.error(`Invalid sold quantity for barcode ${barcode}: ${sold}`);
+      }
+    }
+
+    fs.unlinkSync(filePath); // Remove file after processing
+    res.status(200).json({ message: "Stocks updated successfully", updates });
+  } catch (error) {
+    fs.unlinkSync(filePath); // Ensure file is removed even on error
+    console.error("Error processing CSV file:", error);
+    res
+      .status(500)
+      .json({ message: "Error processing CSV file", error: error.message });
+  }
+});
+
 module.exports = {
   getProducts,
   createProduct,
@@ -210,4 +271,5 @@ module.exports = {
   deleteProduct,
   updateProductsBatch,
   updateProductStocksBatch,
+  uploadProductStocksCSV,
 };
