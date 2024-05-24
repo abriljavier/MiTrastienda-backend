@@ -91,6 +91,9 @@ const createProduct = asyncHandler(async (req, res, next) => {
 //@DESC update one product
 //@route PUT /api/users/products/:id
 //@access private
+//@DESC update one product
+//@route PUT /api/users/products/:id
+//@access private
 const updateProduct = asyncHandler(async (req, res) => {
   const { id } = req.params;
   const {
@@ -103,15 +106,17 @@ const updateProduct = asyncHandler(async (req, res) => {
     description,
     expiration_date,
     barcode,
-    images,
+    image, // Asegúrate de usar el mismo nombre que en el frontend
     position,
     user_id,
   } = req.body;
+
   const product = await Product.findById(id);
   if (!product) {
     res.status(404).json({ message: "Product not found" });
     return;
   }
+
   product.product_name = product_name || product.product_name;
   product.product_line = product_line || product.product_line;
   product.category = category || product.category;
@@ -121,9 +126,10 @@ const updateProduct = asyncHandler(async (req, res) => {
   product.description = description || product.description;
   product.expiration_date = expiration_date || product.expiration_date;
   product.barcode = barcode || product.barcode;
-  product.images = images || product.images;
+  product.image = image !== undefined ? image : product.image; // Permite eliminar la imagen si es una cadena vacía
   product.position = position || product.position;
   product.user_id = user_id || product.user_id;
+
   const updatedProduct = await product.save();
   res.json(updatedProduct);
 });
@@ -171,32 +177,113 @@ const updateProductsBatch = async (req, res) => {
 // @DESC Update batch product stocks
 // @route PUT /api/products/batchUpdateStock
 // @access Private
+const StockModification = require("../models/stockModificationsModel");
 const updateProductStocksBatch = async (req, res) => {
   try {
     const updates = req.body.map((update) => ({
       ...update,
       newStock: parseInt(update.newStock),
     }));
+
+    const modifications = [];
+
     const results = await Promise.all(
-      updates.map((update) =>
-        Product.updateOne(
+      updates.map(async (update) => {
+        const product = await Product.findById(update.productId);
+        if (!product) {
+          return { error: true, productId: update.productId };
+        }
+        const previousStock = product.stock.current;
+        const quantityChanged = update.newStock - previousStock;
+
+        await Product.updateOne(
           { _id: update.productId },
           { $set: { "stock.current": update.newStock } }
-        )
-      )
+        );
+
+        const modification = new StockModification({
+          product_id: update.productId,
+          type: quantityChanged > 0 ? "restock" : "sale",
+          quantity_changed: Math.abs(quantityChanged),
+          date_modified: new Date(),
+          user_id: req.user._id,
+        });
+
+        await modification.save();
+        modifications.push(modification);
+
+        return { success: true, productId: update.productId };
+      })
     );
-    const updatedCount = results.filter(
-      (result) => result.nModified > 0
-    ).length;
+
+    const updatedCount = results.filter((result) => !result.error).length;
 
     res.status(200).json({
       message: "Stocks actualizados con éxito",
       updatedCount: updatedCount,
+      modifications: modifications,
     });
   } catch (error) {
     console.error("Error al actualizar los stocks:", error);
     res.status(500).json({
       message: "Error al actualizar los stocks",
+      error: error.message,
+    });
+  }
+};
+
+// @DESC Update product stocks for breakage
+// @route PUT /api/products/batchUpdateStockForBreakage
+// @access Private
+const updateProductStocksForBreakage = async (req, res) => {
+  try {
+    const updates = req.body.map((update) => ({
+      ...update,
+      newStock: parseInt(update.newStock),
+    }));
+
+    const modifications = [];
+
+    const results = await Promise.all(
+      updates.map(async (update) => {
+        const product = await Product.findById(update.productId);
+        if (!product) {
+          return { error: true, productId: update.productId };
+        }
+        const previousStock = product.stock.current;
+        const quantityChanged = update.newStock - previousStock;
+
+        await Product.updateOne(
+          { _id: update.productId },
+          { $set: { "stock.current": update.newStock } }
+        );
+
+        const modification = new StockModification({
+          product_id: update.productId,
+          type: "breakage",
+          quantity_changed: Math.abs(quantityChanged),
+          date_modified: new Date(),
+          user_id: req.user._id,
+        });
+
+        await modification.save();
+        modifications.push(modification);
+
+        return { success: true, productId: update.productId };
+      })
+    );
+
+    const updatedCount = results.filter((result) => !result.error).length;
+
+    res.status(200).json({
+      message: "Stocks actualizados por rotura con éxito",
+      updatedCount: updatedCount,
+      modifications: modifications,
+    });
+  } catch (error) {
+    console.error("Error al actualizar los stocks por rotura:", error);
+    res.status(500).json({
+      message: "Error al actualizar los stocks por rotura",
       error: error.message,
     });
   }
@@ -212,9 +299,7 @@ const uploadProductStocksCSV = asyncHandler(async (req, res) => {
   if (!req.file) {
     return res.status(400).json({ message: "No file uploaded" });
   }
-
   const filePath = path.join(__dirname, "..", "uploads", req.file.filename);
-
   const parser = fs.createReadStream(filePath).pipe(
     parse({
       columns: true,
@@ -222,40 +307,51 @@ const uploadProductStocksCSV = asyncHandler(async (req, res) => {
       skip_empty_lines: true,
     })
   );
-
-  const updates = [];
+  const session = await mongoose.startSession();
+  session.startTransaction();
   try {
+    const updates = [];
     for await (const row of parser) {
       const { barcode, sold } = row;
       const soldQuantity = parseInt(sold, 10);
-
-      if (!isNaN(soldQuantity)) {
-        const product = await Product.findOneAndUpdate(
-          { barcode },
-          {
-            $inc: { "stock.current": -soldQuantity },
-            $set: { last_modified: new Date() },
-          },
-          { new: true }
-        );
-        if (product) {
-          updates.push({
-            barcode,
-            newStock: product.stock.current,
-            lastModified: product.last_modified,
-          });
-        } else {
-          console.error(`Product with barcode ${barcode} not found.`);
-        }
-      } else {
+      if (isNaN(soldQuantity)) {
         console.error(`Invalid sold quantity for barcode ${barcode}: ${sold}`);
+        continue;
       }
+      const product = await Product.findOneAndUpdate(
+        { barcode },
+        {
+          $inc: { "stock.current": -soldQuantity },
+          $set: { last_modified: new Date() },
+        },
+        { new: true, session }
+      );
+      if (!product) {
+        console.error(`Product with barcode ${barcode} not found.`);
+        continue;
+      }
+      const modification = new StockModification({
+        product_id: product._id,
+        type: "sale",
+        quantity_changed: soldQuantity,
+        date_modified: new Date(),
+        user_id: req.user._id,
+      });
+      await modification.save({ session });
+      updates.push({
+        barcode,
+        newStock: product.stock.current,
+        lastModified: product.last_modified,
+      });
     }
-
-    fs.unlinkSync(filePath); // Remove file after processing
+    await session.commitTransaction();
+    session.endSession();
+    fs.unlinkSync(filePath);
     res.status(200).json({ message: "Stocks updated successfully", updates });
   } catch (error) {
-    fs.unlinkSync(filePath); // Ensure file is removed even on error
+    await session.abortTransaction();
+    session.endSession();
+    fs.unlinkSync(filePath);
     console.error("Error processing CSV file:", error);
     res
       .status(500)
@@ -271,5 +367,6 @@ module.exports = {
   deleteProduct,
   updateProductsBatch,
   updateProductStocksBatch,
+  updateProductStocksForBreakage,
   uploadProductStocksCSV,
 };
