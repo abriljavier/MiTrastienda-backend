@@ -171,32 +171,113 @@ const updateProductsBatch = async (req, res) => {
 // @DESC Update batch product stocks
 // @route PUT /api/products/batchUpdateStock
 // @access Private
+const StockModification = require("../models/stockModificationsModel");
 const updateProductStocksBatch = async (req, res) => {
   try {
     const updates = req.body.map((update) => ({
       ...update,
       newStock: parseInt(update.newStock),
     }));
+
+    const modifications = [];
+
     const results = await Promise.all(
-      updates.map((update) =>
-        Product.updateOne(
+      updates.map(async (update) => {
+        const product = await Product.findById(update.productId);
+        if (!product) {
+          return { error: true, productId: update.productId };
+        }
+        const previousStock = product.stock.current;
+        const quantityChanged = update.newStock - previousStock;
+
+        await Product.updateOne(
           { _id: update.productId },
           { $set: { "stock.current": update.newStock } }
-        )
-      )
+        );
+
+        const modification = new StockModification({
+          product_id: update.productId,
+          type: quantityChanged > 0 ? "restock" : "sale",
+          quantity_changed: Math.abs(quantityChanged),
+          date_modified: new Date(),
+          user_id: req.user._id,
+        });
+
+        await modification.save();
+        modifications.push(modification);
+
+        return { success: true, productId: update.productId };
+      })
     );
-    const updatedCount = results.filter(
-      (result) => result.nModified > 0
-    ).length;
+
+    const updatedCount = results.filter((result) => !result.error).length;
 
     res.status(200).json({
       message: "Stocks actualizados con éxito",
       updatedCount: updatedCount,
+      modifications: modifications,
     });
   } catch (error) {
     console.error("Error al actualizar los stocks:", error);
     res.status(500).json({
       message: "Error al actualizar los stocks",
+      error: error.message,
+    });
+  }
+};
+
+// @DESC Update product stocks for breakage
+// @route PUT /api/products/batchUpdateStockForBreakage
+// @access Private
+const updateProductStocksForBreakage = async (req, res) => {
+  try {
+    const updates = req.body.map((update) => ({
+      ...update,
+      newStock: parseInt(update.newStock),
+    }));
+
+    const modifications = [];
+
+    const results = await Promise.all(
+      updates.map(async (update) => {
+        const product = await Product.findById(update.productId);
+        if (!product) {
+          return { error: true, productId: update.productId };
+        }
+        const previousStock = product.stock.current;
+        const quantityChanged = update.newStock - previousStock;
+
+        await Product.updateOne(
+          { _id: update.productId },
+          { $set: { "stock.current": update.newStock } }
+        );
+
+        const modification = new StockModification({
+          product_id: update.productId,
+          type: "breakage",
+          quantity_changed: Math.abs(quantityChanged),
+          date_modified: new Date(),
+          user_id: req.user._id,
+        });
+
+        await modification.save();
+        modifications.push(modification);
+
+        return { success: true, productId: update.productId };
+      })
+    );
+
+    const updatedCount = results.filter((result) => !result.error).length;
+
+    res.status(200).json({
+      message: "Stocks actualizados por rotura con éxito",
+      updatedCount: updatedCount,
+      modifications: modifications,
+    });
+  } catch (error) {
+    console.error("Error al actualizar los stocks por rotura:", error);
+    res.status(500).json({
+      message: "Error al actualizar los stocks por rotura",
       error: error.message,
     });
   }
@@ -271,5 +352,6 @@ module.exports = {
   deleteProduct,
   updateProductsBatch,
   updateProductStocksBatch,
+  updateProductStocksForBreakage,
   uploadProductStocksCSV,
 };

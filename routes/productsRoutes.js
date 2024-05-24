@@ -10,6 +10,7 @@ const {
   updateProductsBatch,
   updateProductStocksBatch,
   uploadProductStocksCSV,
+  updateProductStocksForBreakage,
 } = require("../controllers/productController");
 const validateToken = require("../middleware/validateTokenHandler");
 const router = express.Router();
@@ -18,6 +19,11 @@ router.use(validateToken);
 router.route("/").get(getProducts).post(createProduct);
 router.put("/batchUpdate", validateToken, updateProductsBatch);
 router.put("/batchUpdateStock", validateToken, updateProductStocksBatch);
+router.put(
+  "/updateProductStocksForBreakage",
+  validateToken,
+  updateProductStocksForBreakage
+);
 router.post(
   "/uploadStockCSV",
   validateToken,
