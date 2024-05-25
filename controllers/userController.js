@@ -2,17 +2,26 @@ const asyncHandler = require("express-async-handler");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const User = require("../models/userModel");
+const Invitation = require("../models/invitationModel");
 
 //@desc Register a user
 //@route POST /api/users/register
 //@access public
 const registerUser = asyncHandler(async (req, res) => {
-  const { CIF, username, email, password, is_admin } = req.body;
-  if (!CIF || !username || !email || !password) {
+  const { CIF, username, email, password, inviteCode } = req.body;
+  if (!CIF || !username || !email || !password || !inviteCode) {
     res.status(400);
-    throw new Error("All fields are mandatory");
+    throw new Error("All fields are mandatory, including invitation code.");
   }
-
+  const invitation = await Invitation.findOne({
+    code: inviteCode,
+    used: false,
+    expiresAt: { $gt: new Date() },
+  });
+  if (!invitation) {
+    res.status(400);
+    throw new Error("Invalid or expired invitation code.");
+  }
   const userExists = await User.findOne({
     $or: [{ email }, { username }, { CIF }],
   });
@@ -20,19 +29,21 @@ const registerUser = asyncHandler(async (req, res) => {
     res.status(400);
     throw new Error("User already exists with that email, username or CIF");
   }
-
   const hashedPassword = await bcrypt.hash(password, 10);
   const user = await User.create({
     CIF,
     username,
     email,
     password: hashedPassword,
-    is_admin: is_admin || false,
+    is_admin: false,
   });
 
   if (user) {
+    invitation.used = true;
+    await invitation.save();
+
     res.status(201).json({
-      _id: user.id,
+      _id: user._id,
       username: user.username,
       email: user.email,
       is_admin: user.is_admin,
@@ -90,8 +101,67 @@ const currentUser = asyncHandler(async (req, res) => {
   res.json(req.user);
 });
 
+// @desc Get a invitation token
+// @route POST /api/users/generate-token
+// @access private
+const generateToken = asyncHandler(async (req, res) => {
+  if (!req.user.is_admin) {
+    res.status(403);
+    throw new Error("Only administrators can generate invitation codes.");
+  }
+  const code = generateUniqueCode();
+  const expiresAt = new Date();
+  expiresAt.setDate(expiresAt.getDate() + 1);
+  const invitation = new Invitation({
+    code,
+    used: false,
+    expiresAt,
+  });
+  try {
+    await invitation.save();
+    res.status(201).json({
+      success: true,
+      message: "Invitation code generated successfully",
+      code: invitation.code,
+      expiresAt: invitation.expiresAt,
+    });
+  } catch (error) {
+    res.status(500);
+    throw new Error("Failed to generate invitation code.");
+  }
+});
+
+function generateUniqueCode() {
+  return (
+    Math.random().toString(36).substring(2, 15) +
+    Math.random().toString(36).substring(2, 15)
+  );
+}
+
+// @desc Get all associated users
+// @route GET /api/users/associated
+// @access Private
+const associated = asyncHandler(async (req, res) => {
+  // Verificar si el usuario es administrador
+  if (!req.user.is_admin) {
+    return res.status(403).json({ message: "Access denied. Admins only." });
+  }
+  try {
+    const users = await User.find({ _id: { $ne: req.user._id } }).select(
+      "-password"
+    );
+    res.json(users);
+  } catch (error) {
+    res
+      .status(500)
+      .json({ message: "Error fetching users", error: error.message });
+  }
+});
+
 module.exports = {
   registerUser,
   loginUser,
   currentUser,
+  generateToken,
+  associated,
 };
