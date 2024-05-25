@@ -3,6 +3,7 @@ const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const User = require("../models/userModel");
 const Invitation = require("../models/invitationModel");
+const transporter = require("../utils/nodemailerConfig");
 
 //@desc Register a user
 //@route POST /api/users/register
@@ -158,10 +159,45 @@ const associated = asyncHandler(async (req, res) => {
   }
 });
 
+// @desc POST resetPassword
+// @route POST /api/users/reset-password
+// @access Private
+const sendPasswordResetEmail = asyncHandler(async (req, res) => {
+  const { email } = req.body;
+  const user = await User.findOne({ email });
+
+  if (!user) {
+    res.status(404).json({ message: "User not found" });
+    return;
+  }
+
+  const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, {
+    expiresIn: "1h",
+  });
+  const resetLink = `http://localhost:4200/reset-password/${token}`; // Ajusta este enlace según tu frontend
+
+  const mailOptions = {
+    from: process.env.EMAIL,
+    to: user.email,
+    subject: "Password Reset Request",
+    html: `<p>You requested a password reset. Click <a href="${resetLink}">here</a> to reset your password.</p>`,
+  };
+
+  transporter.sendMail(mailOptions, function (error, info) {
+    if (error) {
+      console.log(error);
+      res.status(500).json({ message: "Error sending email" });
+    } else {
+      res.status(200).json({ message: "Password reset email sent" });
+    }
+  });
+});
+
 module.exports = {
   registerUser,
   loginUser,
   currentUser,
   generateToken,
   associated,
+  sendPasswordResetEmail,
 };
