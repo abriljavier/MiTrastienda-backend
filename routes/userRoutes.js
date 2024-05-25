@@ -14,7 +14,7 @@ router
   .post("/register", registerUser)
   .post("/login", loginUser)
   .post("/generate-token", validateToken, generateToken)
-  .post("/reset-password", sendPasswordResetEmail);
+  .post("/reset-password-request", sendPasswordResetEmail);
 router
   .get("/current", validateToken, currentUser)
   .get("/associated", validateToken, associated);

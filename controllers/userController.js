@@ -160,9 +160,10 @@ const associated = asyncHandler(async (req, res) => {
 });
 
 // @desc POST resetPassword
-// @route POST /api/users/reset-password
+// @route POST /api/users/reset-password-request
 // @access Private
 const sendPasswordResetEmail = asyncHandler(async (req, res) => {
+  console.log(req.body);
   const { email } = req.body;
   const user = await User.findOne({ email });
 
@@ -171,7 +172,7 @@ const sendPasswordResetEmail = asyncHandler(async (req, res) => {
     return;
   }
 
-  const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, {
+  const token = jwt.sign({ id: user._id }, process.env.ACCESS_TOKEN_SECRET, {
     expiresIn: "1h",
   });
   const resetLink = `http://localhost:4200/reset-password/${token}`; // Ajusta este enlace según tu frontend
