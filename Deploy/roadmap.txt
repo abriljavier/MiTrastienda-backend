@@ -1,0 +1,48 @@
+
+MIS ARTICULOS
+    En categoria la array que lo alimenta debe ser un set para no repetir
+    Avisar que si no selecciona familia no se puede crear
+    Deja meter stocks negativos o 0 eso está mal 
+    Un botón para resetear la tabla, porque si filtras rompes las familias
+    El filtro de familia va raro y la ordenación está muerta
+    filtro precio debe ser numerico
+    Si no tiene fecha al editar se setea a 1970
+    El codigo de barras no se modifica
+    TypeError: Cannot read properties of undefined (reading 'find') al editar aparece con los campos vacios
+    El dialogo sale arriba a la derecha
+
+MIS FAMILIAS
+    Dialogo de eliminar familia posición incosistente
+
+CONTROL DE STOCKS
+    Revisa la lógica, este componente no funciona normal
+
+ROTURA
+    Rotura no tiene dialog, directamente ejecuta
+
+CARGAR CSV
+    {title: 'Error', status: 200, message: 'mongoose is not defined'}
+
+INFORMES
+    Si not found peta, que salga un aviso
+
+MI PERFIL
+    ADMIN
+        No te deja generar tokens para usuarios http://javierabril.com.es:8090/api/users/generate-token 401 unauthorized
+        Mete paginación o algo a la parte de usuarios asociados
+
+LOGIN/REGISTER
+    Que meta algo de validación de contraseñas, porque deja meter 1 como password xd
+
+HOME
+    User en vacio tiene una card vacia sin contenido
+    Si no tiene nada podría decir algo rollo "Cuando añadas tendrás datos"
+
+GENERAL
+    Hay que quitar logs
+    Los dialogos dicen "Yes"
+
+
+
+
+

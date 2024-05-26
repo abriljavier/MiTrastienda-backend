@@ -1,0 +1,8 @@
+ng build --configuration=production
+Folder in mitrastienda
+    - backend/ --> todo el backend
+    - sakai-ng/ --> la buidl de prod
+    - Dockerfile
+docker build -t mitrastienda-fullstack .
+docker run -p 8090:3000 -d mitrastienda-fullstack
+http://javierabril.com.es:8090
