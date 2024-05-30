@@ -203,7 +203,7 @@ const updateProductStocksBatch = async (req, res) => {
 
         const modification = new StockModification({
           product_id: update.productId,
-          type: quantityChanged > 0 ? "restock" : "sale",
+          type: "sale",
           quantity_changed: Math.abs(quantityChanged),
           date_modified: new Date(),
           user_id: req.user._id,
@@ -299,6 +299,7 @@ const uploadProductStocksCSV = asyncHandler(async (req, res) => {
   if (!req.file) {
     return res.status(400).json({ message: "No file uploaded" });
   }
+
   const filePath = path.join(__dirname, "..", "uploads", req.file.filename);
   const parser = fs.createReadStream(filePath).pipe(
     parse({
@@ -307,8 +308,7 @@ const uploadProductStocksCSV = asyncHandler(async (req, res) => {
       skip_empty_lines: true,
     })
   );
-  const session = await mongoose.startSession();
-  session.startTransaction();
+
   try {
     const updates = [];
     for await (const row of parser) {
@@ -318,18 +318,21 @@ const uploadProductStocksCSV = asyncHandler(async (req, res) => {
         console.error(`Invalid sold quantity for barcode ${barcode}: ${sold}`);
         continue;
       }
+
       const product = await Product.findOneAndUpdate(
         { barcode },
         {
           $inc: { "stock.current": -soldQuantity },
           $set: { last_modified: new Date() },
         },
-        { new: true, session }
+        { new: true }
       );
+
       if (!product) {
         console.error(`Product with barcode ${barcode} not found.`);
         continue;
       }
+
       const modification = new StockModification({
         product_id: product._id,
         type: "sale",
@@ -337,20 +340,21 @@ const uploadProductStocksCSV = asyncHandler(async (req, res) => {
         date_modified: new Date(),
         user_id: req.user._id,
       });
-      await modification.save({ session });
+      await modification.save();
       updates.push({
         barcode,
         newStock: product.stock.current,
         lastModified: product.last_modified,
       });
     }
-    await session.commitTransaction();
-    session.endSession();
+
     fs.unlinkSync(filePath);
-    res.status(200).json({ message: "Stocks updated successfully", updates });
+    res.status(200).json({
+      message: "Stocks updated successfully",
+      totalUpdates: updates.length,
+      updates: updates,
+    });
   } catch (error) {
-    await session.abortTransaction();
-    session.endSession();
     fs.unlinkSync(filePath);
     console.error("Error processing CSV file:", error);
     res

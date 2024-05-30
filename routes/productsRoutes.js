@@ -16,7 +16,10 @@ const validateToken = require("../middleware/validateTokenHandler");
 const router = express.Router();
 
 router.use(validateToken);
-router.route("/").get(getProducts).post(createProduct);
+router
+  .route("/")
+  .get(validateToken, getProducts)
+  .post(validateToken, createProduct);
 router.put("/batchUpdate", validateToken, updateProductsBatch);
 router.put("/batchUpdateStock", validateToken, updateProductStocksBatch);
 router.put(
